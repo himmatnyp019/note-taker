@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Note It, down</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        textarea {
+            width: 95%;
+            height: 60vh;
+            font-size: 19px;
+            padding: 15px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            outline: none;
+            resize: none;
+
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        button {
+            padding: 20px 30px;
+            font-size: 18px;
+            background: #316357;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            border-radius: 10px;
+        }
+
+        .dark-mode {
+            background-color: #333;
+            color: #f4f4f4;
+        }
+
+        .dark-mode textarea {
+            background-color: #444;
+            color: #f4f4f4;
+        }
+
+        .save-status {
+            font-size: 14px;
+            color: #666;
+            margin: 0;
+            padding: 0;
+        }
+        .undo-redo-buttons{
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 0 3%;
+            transform: translateY(30px);
+
+            button{
+                background-color: transparent;
+                padding: 5px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>📝Note it, down</h1>
+    <div class="undo-redo-buttons">
+        <button id="undo">↩️ </button>
+        <button id="redo">↪️ </button>
+    </div>
+    <textarea name="" id="note" placeholder="Start typing your note ..."></textarea>
+    <p id="save-status" class="save-status"> Note auto saved </p>
+    <br><br>
+    <button id="save">💾 Save Note</button>
+    <button id="toggle-mode">Dark Mode</button>
+    <button id="save-as">📂 Save as</button>
+    <button id="new-note">🆕 New Note</button>
+
+
+    <script src="renderer.js"></script>
+</body>
+
+</html>
