@@ -56,6 +56,19 @@ app.whenReady().then(() => {
         // if user click discard changes button then we return true value 
         return {confirmed:result.response === 0}
     });
+    
+    //opening new file from exisitng path
+    ipcMain.handle('open-file', async ()=>{
+        const result = await dialog.showOpenDialog({
+            properties:['openFile'],
+            filters:[{name:'Text Files', extensions:['txt']}]
+        });
+        if (result.canceled) return {success:false};
+
+        const filePath = result.filePaths[0];
+        const content = fs.readFileSync(filePath, 'utf-8');
+        return {success:true, filePath:result.filePaths[0], content};
+    })
 
     createWindow();
     app.on('active', ()=>{

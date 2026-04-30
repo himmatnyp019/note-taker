@@ -4,6 +4,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     const toggleBtn = document.getElementById('toggle-mode');
     const statusEl = document.getElementById('save-status');
     const openNewWindowBtn = document.getElementById('new-note');
+    const openFile = document.getElementById('open-file');
 
     const saveAsBtn = document.getElementById('save-as');
     const undoBtn = document.getElementById('undo');
@@ -51,17 +52,29 @@ window.addEventListener('DOMContentLoaded', async () => {
     const applyState = () => {
         textarea.value = currentState;
     }
-
+    let currentFilePath = '';
 
     saveAsBtn.addEventListener('click', async () => {
         const result = await window.electronAPI.saveAs(textarea.value);
         if (result.success) {
             lastSavedText = textarea.value;
+            currentFilePath = result.filePath;
             statusEl.textContent = `Saved to ${result.filePath}`;
         } else {
             statusEl.textContent = 'Save failed, cancelled.';
         }
     })
+
+    //opening existing file /
+    openFile.addEventListener('click', async () => {
+        const result = await window.electronAPI.openFile();
+        if (result.success) {
+
+            textarea.value = result.content;
+            lastSavedText = result.content;
+            statusEl.textContent = `Opened ${result.filePath}`;
+        }
+    });
 
 
     toggleBtn.addEventListener('click', () => {
@@ -138,8 +151,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     // new note window function
     openNewWindowBtn.addEventListener('click', async () => {
-        ``
-        console.log("new window button clicked")
+
         const result = await window.electronAPI.openNewWindow();
         if (result.confirmed) {
             lastSavedText = '';
@@ -168,7 +180,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         if (e.ctrlKey && e.key.toLowerCase() === 'y') {
             redoBtn.click();
         }
-        if(e.ctrlKey && e.key.toLocaleLowerCase() === 'n' ){
+        if (e.ctrlKey && e.key.toLocaleLowerCase() === 'n') {
             openNewWindowBtn.click();
         }
         if (e.ctrlKey && e.key.toLowerCase() === 'z') {
