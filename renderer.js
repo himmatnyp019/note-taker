@@ -64,6 +64,11 @@ window.addEventListener('DOMContentLoaded', async () => {
             statusEl.textContent = 'Save failed, cancelled.';
         }
     })
+    // simply save the file  /
+    saveBtn.addEventListener('click', async () => {
+         await window.electronAPI.saveNote(textarea.value);
+        alert('Note Saved Successfully.')
+    })
 
     //opening existing file /
     openFile.addEventListener('click', async () => {
@@ -89,10 +94,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     let lastSavedText = textarea.value;
 
-    saveBtn.addEventListener('click', async () => {
-        await window.electronAPI.saveNote(textarea.value);
-        alert('Note Saved Successfully.')
-    })
 
     let debounceTimer;
     let countdownInterval;
