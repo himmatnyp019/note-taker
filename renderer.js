@@ -15,13 +15,13 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     const fontIncBtn = document.getElementById('font-inc');
     const fontDecBtn = document.getElementById('font-dec');
-   
+
     // =================================================================
     // 2. STATE VARIABLES
     // =================================================================
     let undoStack = [];
     let redoStack = [];
-    let currentState = textarea.value;
+    let currentState = textarea.innerHTML;
     let currentFilePath = '';       // Moved up: must be declared before renderNotes uses it
     let lastSavedText = '';         // Moved up: must be declared before renderNotes uses it
     let debounceTimer;
@@ -31,6 +31,22 @@ window.addEventListener('DOMContentLoaded', async () => {
     // 3. UI RENDERING & STATE FUNCTIONS
     // =================================================================
 
+    // LOAD TOOLBAR COMPONENT & INIT FORMATTING
+    try {
+        // Fetch the HTML component
+        const response = await fetch('components/toolbar.html');
+        const toolbarHtml = await response.text();
+
+        // Inject it into our container
+        document.getElementById('toolbar-container').innerHTML = toolbarHtml;
+
+        // Now that the buttons exist in the DOM, initialize our formatting.js logic
+        if (typeof initializeRichText === 'function') {
+            initializeRichText();
+        }
+    } catch (err) {
+        console.error("Failed to load toolbar component:", err);
+    }
     async function renderNotes() {
         const notesArray = await window.electronAPI.getNotes();
         noteList.innerHTML = '';
@@ -63,7 +79,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
                 // Map to our system's state variables
                 currentFilePath = note.id;
-                textarea.value = note.content;
+                textarea.innerHTML = note.content;
                 lastSavedText = note.content;
 
                 // Fix undo/redo states so it doesn't spill over from the previous note
@@ -88,7 +104,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                     // If we deleted the note we are currently looking at, clear the editor
                     if (currentFilePath === note.id) {
                         currentFilePath = '';
-                        textarea.value = '';
+                        textarea.innerHTML = '';
                         lastSavedText = '';
                         currentState = '';
                         undoStack = [];
@@ -108,21 +124,21 @@ window.addEventListener('DOMContentLoaded', async () => {
     };
 
     const applyState = () => {
-        textarea.value = currentState;
+        textarea.innerHTML = currentState;
     };
 
     //TEXT AND WORD COUNT
     function updateWordCount() {
-        const text = textarea.value;
+        const text = textarea.innerHTML;
         const characters = text.length;
         const words = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
         document.getElementById('word-count').textContent = `Words: ${words} | Characters: ${characters}`;
     }
     async function autoSave() {
         if (!currentFilePath) return; // Only autosave if the file has been saved at least once
-        await window.electronAPI.saveNote(textarea.value, currentFilePath);
+        await window.electronAPI.saveNote(textarea.innerHTML, currentFilePath);
         statusEl.textContent = 'Auto-saved successfully';
-        lastSavedText = textarea.value;
+        lastSavedText = textarea.innerHTML;
     }
     // TOGGLE DARK MODE
     // 1. On startup, check if the user previously chose dark mode
@@ -174,15 +190,15 @@ window.addEventListener('DOMContentLoaded', async () => {
         renderNotes(notes);
 
         if (notes && notes.length > 0) {
-            textarea.value = notes[notes.length - 1].content;
+            textarea.innerHTML = notes[notes.length - 1].content;
             currentFilePath = notes[notes.length - 1].id;
         } else {
             const savedNote = await window.electronAPI.loadNote();
-            textarea.value = savedNote || '';
+            textarea.innerHTML = savedNote || '';
         }
 
-        lastSavedText = textarea.value;
-        currentState = textarea.value;
+        lastSavedText = textarea.innerHTML;
+        currentState = textarea.innerHTML;
     } catch (err) {
         console.error("Initialization error:", err);
     }
@@ -212,7 +228,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // SAVE AS
     saveAsBtn.addEventListener('click', async () => {
         // Standardized to use 'saveAs' consistently
-        const result = await window.electronAPI.saveAs(textarea.value);
+        const result = await window.electronAPI.saveAs(textarea.innerHTML);
 
         if (result.success) {
             currentFilePath = result.filePath;
@@ -221,21 +237,22 @@ window.addEventListener('DOMContentLoaded', async () => {
             const noteObject = {
                 id: result.filePath,
                 title: fileName,
-                content: textarea.value,
+                content: textarea.innerHTML,
                 updatedAt: new Date().toISOString()
             };
 
             await window.electronAPI.saveJSONNote(noteObject);
             renderNotes(await window.electronAPI.getNotes());
 
-            lastSavedText = textarea.value;
+            lastSavedText = textarea.innerHTML;
             statusEl.textContent = `Saved as: ${fileName}`;
         }
     });
 
     // SAVE
+  // SAVE
     saveBtn.addEventListener('click', async () => {
-        const text = textarea.value;
+        const text = textarea.innerHTML;
 
         // If it's a new file with no path, trigger Save As instead
         if (!currentFilePath) {
@@ -247,23 +264,25 @@ window.addEventListener('DOMContentLoaded', async () => {
 
         const noteObject = {
             id: currentFilePath,
-            title: text.substring(0, 20) || 'Untitled Note',
+            // 🔥 CRITICAL FIX: Use innerText for the title so it ignores HTML tags/images
+            title: textarea.innerText.substring(0, 20) || 'Untitled Note',
             content: text,
             updatedAt: new Date().toISOString()
         };
 
         await window.electronAPI.saveJSONNote(noteObject);
-        renderNotes(await window.electronAPI.getNotes());
+        
+        // Make sure you call your updated renderNotes function
+        renderNotes();
 
         lastSavedText = text;
         statusEl.textContent = 'Note saved successfully';
     });
-
     // OPEN FILE
     openFile.addEventListener('click', async () => {
         const result = await window.electronAPI.openFile();
         if (result.success) {
-            textarea.value = result.content;
+            textarea.innerHTML = result.content;
             lastSavedText = result.content;
             currentFilePath = result.filePath;
             currentState = result.content;
@@ -280,7 +299,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             await window.electronAPI.deleteNote(note.id);
             if (currentNoteId === note.id) {
                 currentNoteId = null;
-                textarea.value = '';
+                textarea.innerHTML = '';
                 lastSavedText = '';
                 updateWordCount();
             }
@@ -296,7 +315,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         const result = await window.electronAPI.openNewNote();
         if (result.confirmed) {
             lastSavedText = '';
-            textarea.value = '';
+            textarea.innerHTML = '';
             currentState = '';
             currentFilePath = '';
             undoStack = [];
@@ -310,7 +329,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // 6. EVENT LISTENERS: TYPING / TEXTAREA
     // =================================================================
     textarea.addEventListener('input', () => {
-        let newText = textarea.value;
+        let newText = textarea.innerHTML;
         saveState(newText);
 
         clearTimeout(debounceTimer);

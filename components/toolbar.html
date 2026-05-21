@@ -1,0 +1,62 @@
+<div class="rich-toolbar"
+    style="display: flex; gap: 8px; flex-wrap: wrap; padding: 10px; background: var(--bg-panel); border-bottom: 1px solid var(--border-color); border-radius: 12px 12px 0 0;">
+
+    <!-- Text Formatting -->
+    <button class="format-btn" data-command="bold" title="Bold"><b>B</b></button>
+    <button class="format-btn" data-command="italic" title="Italic"><i>I</i></button>
+    <button class="format-btn" data-command="underline" title="Underline"><u>U</u></button>
+    <button class="format-btn" data-command="strikeThrough" title="Strikethrough"><s>S</s></button>
+
+    <div style="width: 1px; background: var(--border-color); margin: 0 5px;"></div> <!-- Divider -->
+
+    <!-- Alignment -->
+    <button class="format-btn" data-command="justifyLeft" title="Align Left">⬅️</button>
+    <button class="format-btn" data-command="justifyCenter" title="Align Center">↔️</button>
+    <button class="format-btn" data-command="justifyRight" title="Align Right">➡️</button>
+    <!-- <button id="redo" class="format-btn" title="Redo (Ctrl+Y)">↪️</button> -->
+    <!-- <button id="undo" class="format-btn"  title="Undo (Ctrl+Z)">↩️</button> -->
+    <div style="width: 1px; background: var(--border-color); margin: 0 5px;"></div> <!-- Divider -->
+
+    <!-- Colors -->
+    <div style="display: flex; align-items: center; gap: 5px;">
+        <label style="font-size: 12px; color: var(--text-muted);">Text:</label>
+        <input type="color" id="text-color" class="color-picker" title="Text Color">
+    </div>
+
+    <!-- Insert Image -->
+    <div style="width: 1px; background: var(--border-color); margin: 0 5px;"></div>
+    <button id="insert-image-btn" title="Insert Image">🖼️ Insert Image</button>
+
+    <!-- Hidden File Input for Image Upload -->
+    <input type="file" id="image-upload" accept="image/png, image/jpeg, image/gif" style="display: none;">
+</div>
+
+<style>
+    .format-btn {
+        padding: 5px 10px;
+        font-size: 16px;
+        background: transparent;
+        color: var(--text-main);
+        border: 1px solid transparent;
+        border-radius: 4px;
+    }
+
+    .format-btn:hover {
+        background: var(--item-hover);
+        border: 1px solid var(--border-color);
+    }
+
+    .color-picker {
+        border: none;
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        background: transparent;
+        cursor: pointer;
+    }
+
+    .rich-toolbar button {
+        background: var(--bg-app);
+        color: var(--text-main);
+    }
+</style>
