@@ -1,5 +1,5 @@
 
-const { BrowserWindow, app } = require('electron'); 
+const { BrowserWindow, app } = require('electron');
 
 const menuTemplate = [
     {
@@ -9,28 +9,28 @@ const menuTemplate = [
                 label: "New Note",
                 accelerator: "CmdOrCtrl+N",
                 click: () => {
-                    BrowserWindow.getFocusedWindow().webContents.send('open-new-note');
+                    BrowserWindow.getFocusedWindow().webContents.send('menu-open-new-note');
                 }
             },
             {
                 label: "Open File",
                 accelerator: "CmdOrCtrl+O",
                 click: () => {
-                    BrowserWindow.getFocusedWindow().webContents.send('open-file');
+                    BrowserWindow.getFocusedWindow().webContents.send('menu-open-file');
                 }
             },
             {
                 label: "Save",
                 accelerator: "CmdOrCtrl+S",
                 click: () => {
-                    BrowserWindow.getFocusedWindow().webContents.send('save-note');
+                    BrowserWindow.getFocusedWindow().webContents.send('menu-save-note');
                 }
             },
             {
                 label: "Save As",
                 accelerator: "CmdOrCtrl+Shift+S",
                 click: () => {
-                    BrowserWindow.getFocusedWindow().webContents.send('save-as');
+                    BrowserWindow.getFocusedWindow().webContents.send('menu-save-as');
                 }
             },
             { type: "separator" }, // 3. Fixed 'eperator' typo
@@ -41,6 +41,15 @@ const menuTemplate = [
                     app.quit();
                 }
             }
+        ],
+
+    },
+    {
+        label: "View",
+        submenu: [
+            {
+                label: "Dark Mode", type: "checkbox"
+            },
         ]
     }
 ];
