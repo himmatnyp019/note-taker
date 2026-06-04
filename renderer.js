@@ -3,6 +3,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // 1. DOM ELEMENTS
     // =================================================================
     const textarea = document.getElementById('note');
+    const editor = document.getElementById('note'); // Points to same element, which is fine
     const saveBtn = document.getElementById('save');
     const toggleBtn = document.getElementById('toggle-mode');
     const statusEl = document.getElementById('save-status');
@@ -22,8 +23,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     let undoStack = [];
     let redoStack = [];
     let currentState = textarea.innerHTML;
-    let currentFilePath = '';       // Moved up: must be declared before renderNotes uses it
-    let lastSavedText = '';         // Moved up: must be declared before renderNotes uses it
+    let currentFilePath = '';
+    let lastSavedText = '';
     let debounceTimer;
     let countdownInterval;
 
@@ -33,20 +34,18 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     // LOAD TOOLBAR COMPONENT & INIT FORMATTING
     try {
-        // Fetch the HTML component
         const response = await fetch('components/toolbar.html');
         const toolbarHtml = await response.text();
 
-        // Inject it into our container
         document.getElementById('toolbar-container').innerHTML = toolbarHtml;
 
-        // Now that the buttons exist in the DOM, initialize our formatting.js logic
         if (typeof initializeRichText === 'function') {
             initializeRichText();
         }
     } catch (err) {
         console.error("Failed to load toolbar component:", err);
     }
+
     async function renderNotes() {
         const notesArray = await window.electronAPI.getNotes();
         noteList.innerHTML = '';
@@ -60,9 +59,8 @@ window.addEventListener('DOMContentLoaded', async () => {
             const div = document.createElement('div');
             div.className = 'note-item';
 
-            // Highlight active note using our system variable (currentFilePath)
             if (note.id === currentFilePath) {
-                div.className += ' active'; // You might want to add a .active class in your CSS!
+                div.className += ' active';
             }
 
             div.innerHTML = `
@@ -71,23 +69,22 @@ window.addEventListener('DOMContentLoaded', async () => {
                 <button class="delete-btn" data-id="${note.id}" style="background: #e74c3c; padding: 2px 6px; font-size: 10px; border-radius: 4px;">X</button>
             </div>
             <small>${new Date(note.updatedAt).toLocaleString()}</small>
-        `;
+            `;
 
             // CLICK TO OPEN NOTE
             div.addEventListener('click', (e) => {
                 if (e.target.classList.contains('delete-btn')) return;
 
-                // Map to our system's state variables
                 currentFilePath = note.id;
                 textarea.innerHTML = note.content;
                 lastSavedText = note.content;
 
-                // Fix undo/redo states so it doesn't spill over from the previous note
                 currentState = note.content;
                 undoStack = [];
                 redoStack = [];
 
-                renderNotes(); // Re-render to update the 'active' styling
+                updateWordCount();
+                renderNotes();
             });
 
             // CLICK TO DELETE NOTE
@@ -95,13 +92,11 @@ window.addEventListener('DOMContentLoaded', async () => {
             delBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
 
-                // Using our existing confirmation dialog (which asks "Are you sure?")
-                const result = await window.electronAPI.openNewNote();
+                const result = await window.electronAPI.openNewNote(); // Using your confirmation dialog
 
                 if (result.confirmed) {
                     await window.electronAPI.deleteNote(note.id);
 
-                    // If we deleted the note we are currently looking at, clear the editor
                     if (currentFilePath === note.id) {
                         currentFilePath = '';
                         textarea.innerHTML = '';
@@ -109,48 +104,65 @@ window.addEventListener('DOMContentLoaded', async () => {
                         currentState = '';
                         undoStack = [];
                         redoStack = [];
+                        updateWordCount();
                     }
-                    renderNotes(); // Refresh the sidebar
+                    renderNotes();
                 }
             });
 
             noteList.appendChild(div);
         });
     }
+
     const saveState = (newStack) => {
         undoStack.push(currentState);
         currentState = newStack;
-        redoStack = []; // clear redo stack on new input
+        redoStack = [];
     };
 
     const applyState = () => {
         textarea.innerHTML = currentState;
+        updateWordCount();
     };
 
-    //TEXT AND WORD COUNT
+    // TEXT AND WORD COUNT
     function updateWordCount() {
-        const text = textarea.innerHTML;
+        const text = textarea.innerText || "";
         const characters = text.length;
         const words = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
-        document.getElementById('word-count').textContent = `Words: ${words} | Characters: ${characters}`;
+
+        // It looks for this exact ID!
+        const wordCountEl = document.getElementById('word-count');
+        if (wordCountEl) {
+            wordCountEl.textContent = `Words: ${words} | Characters: ${characters}`;
+        }
     }
+
     async function autoSave() {
-        if (!currentFilePath) return; // Only autosave if the file has been saved at least once
+        if (!currentFilePath) return;
         await window.electronAPI.saveNote(textarea.innerHTML, currentFilePath);
+
+        // Also update the JSON data silently for the sidebar
+        const noteObject = {
+            id: currentFilePath,
+            title: textarea.innerText.substring(0, 20) || 'Untitled Note',
+            content: textarea.innerHTML,
+            updatedAt: new Date().toISOString()
+        };
+        await window.electronAPI.saveJSONNote(noteObject);
+        renderNotes();
+
         statusEl.textContent = 'Auto-saved successfully';
         lastSavedText = textarea.innerHTML;
     }
+
     // TOGGLE DARK MODE
-    // 1. On startup, check if the user previously chose dark mode
     if (localStorage.getItem('theme') === 'dark') {
         document.body.classList.add('dark-mode');
-        console.log(localStorage.getItem('theme'), " is the theme mode (saved)")
     }
 
-    // 2. Listen for clicks to toggle and save the new choice
     toggleBtn.addEventListener('click', () => {
         document.body.classList.toggle('dark-mode');
-        // Save the current mode so the app remembers it next time
         if (document.body.classList.contains('dark-mode')) {
             localStorage.setItem('theme', 'dark');
         } else {
@@ -159,29 +171,28 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
 
     try {
-        // 1. Load saved font size (default to 16 if none exists)
         let currentFontSize = parseInt(localStorage.getItem('fontSize')) || 16;
         textarea.style.fontSize = `${currentFontSize}px`;
 
-        // 2. Increase Font Size
         fontIncBtn.addEventListener('click', () => {
-            if (currentFontSize < 48) { // Maximum size limit
+            if (currentFontSize < 48) {
                 currentFontSize += 2;
                 textarea.style.fontSize = `${currentFontSize}px`;
-                localStorage.setItem('fontSize', currentFontSize); // Save to storage
+                localStorage.setItem('fontSize', currentFontSize);
             }
         });
-        // 3. Decrease Font Size
+
         fontDecBtn.addEventListener('click', () => {
-            if (currentFontSize > 10) { // Minimum size limit
+            if (currentFontSize > 10) {
                 currentFontSize -= 2;
                 textarea.style.fontSize = `${currentFontSize}px`;
-                localStorage.setItem('fontSize', currentFontSize); // Save to storage
+                localStorage.setItem('fontSize', currentFontSize);
             }
         });
     } catch (error) {
-        console.log(error)
+        console.log(error);
     }
+
     // =================================================================
     // 4. INITIALIZATION
     // =================================================================
@@ -199,6 +210,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
         lastSavedText = textarea.innerHTML;
         currentState = textarea.innerHTML;
+        updateWordCount();
     } catch (err) {
         console.error("Initialization error:", err);
     }
@@ -207,27 +219,23 @@ window.addEventListener('DOMContentLoaded', async () => {
     // 5. EVENT LISTENERS: BUTTONS
     // =================================================================
 
-    // UNDO
     undoBtn.addEventListener('click', () => {
         if (undoStack.length === 0) return;
-        statusEl.textContent = `Undo text, stack: ${undoStack.length}`;
         redoStack.push(currentState);
         currentState = undoStack.pop();
         applyState();
+        statusEl.textContent = `Undo applied`;
     });
 
-    // REDO
     redoBtn.addEventListener('click', () => {
         if (redoStack.length === 0) return;
-        statusEl.textContent = `Redo text, stack: ${redoStack.length}`;
         undoStack.push(currentState);
         currentState = redoStack.pop();
         applyState();
+        statusEl.textContent = `Redo applied`;
     });
 
-    // SAVE AS
     saveAsBtn.addEventListener('click', async () => {
-        // Standardized to use 'saveAs' consistently
         const result = await window.electronAPI.saveAs(textarea.innerHTML);
 
         if (result.success) {
@@ -242,19 +250,16 @@ window.addEventListener('DOMContentLoaded', async () => {
             };
 
             await window.electronAPI.saveJSONNote(noteObject);
-            renderNotes(await window.electronAPI.getNotes());
+            renderNotes();
 
             lastSavedText = textarea.innerHTML;
             statusEl.textContent = `Saved as: ${fileName}`;
         }
     });
 
-    // SAVE
-  // SAVE
     saveBtn.addEventListener('click', async () => {
         const text = textarea.innerHTML;
 
-        // If it's a new file with no path, trigger Save As instead
         if (!currentFilePath) {
             saveAsBtn.click();
             return;
@@ -264,21 +269,18 @@ window.addEventListener('DOMContentLoaded', async () => {
 
         const noteObject = {
             id: currentFilePath,
-            // 🔥 CRITICAL FIX: Use innerText for the title so it ignores HTML tags/images
             title: textarea.innerText.substring(0, 20) || 'Untitled Note',
             content: text,
             updatedAt: new Date().toISOString()
         };
 
         await window.electronAPI.saveJSONNote(noteObject);
-        
-        // Make sure you call your updated renderNotes function
         renderNotes();
 
         lastSavedText = text;
         statusEl.textContent = 'Note saved successfully';
     });
-    // OPEN FILE
+
     openFile.addEventListener('click', async () => {
         const result = await window.electronAPI.openFile();
         if (result.success) {
@@ -286,32 +288,12 @@ window.addEventListener('DOMContentLoaded', async () => {
             lastSavedText = result.content;
             currentFilePath = result.filePath;
             currentState = result.content;
+            updateWordCount();
             statusEl.textContent = `Opened ${result.filePath}`;
         }
     });
 
-    //DELETE NOTE FROM SIDEBAR
-    const delBtn = div.querySelector('.delete-btn');
-    delBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const result = await window.electronAPI.newNote();
-        if (result.confirmed) {
-            await window.electronAPI.deleteNote(note.id);
-            if (currentNoteId === note.id) {
-                currentNoteId = null;
-                textarea.innerHTML = '';
-                lastSavedText = '';
-                updateWordCount();
-            }
-            renderNotes();
-        }
-    });
-    noteList.appendChild(div);
-
-
-    // NEW NOTE WINDOW / RESET
     openNewWindowBtn.addEventListener('click', async () => {
-        // Standardized API call name to match main.js handle 'open-new-note'
         const result = await window.electronAPI.openNewNote();
         if (result.confirmed) {
             lastSavedText = '';
@@ -320,45 +302,59 @@ window.addEventListener('DOMContentLoaded', async () => {
             currentFilePath = '';
             undoStack = [];
             redoStack = [];
+            updateWordCount();
             statusEl.textContent = 'New note initialized';
         }
     });
 
-
     // =================================================================
     // 6. EVENT LISTENERS: TYPING / TEXTAREA
     // =================================================================
-    textarea.addEventListener('input', () => {
-        let newText = textarea.innerHTML;
-        saveState(newText);
+
+    // EXPOSED TO WINDOW so formatting.js can use it!
+    window.handleContentChange = function () {
+        if (!editor) return;
+
+        let newText = editor.innerHTML;
+
+        if (typeof saveState === 'function') {
+            saveState(newText);
+        }
+
+        // Live update word count on every keystroke
+        updateWordCount();
 
         clearTimeout(debounceTimer);
         clearInterval(countdownInterval);
 
         let timeLeft = 5;
-        statusEl.textContent = `Changes detected - auto saving in ${timeLeft}s...`;
+        if (statusEl) {
+            statusEl.textContent = `Changes detected - auto saving in ${timeLeft}s...`;
+        }
 
         countdownInterval = setInterval(() => {
             timeLeft--;
             if (timeLeft > 0) {
-                statusEl.textContent = `Changes detected - auto saving in ${timeLeft}s...`;
+                if (statusEl) statusEl.textContent = `Changes detected - auto saving in ${timeLeft}s...`;
             } else {
                 clearInterval(countdownInterval);
+                if (statusEl) statusEl.textContent = `Saved automatically.`;
             }
         }, 1000);
 
         debounceTimer = setTimeout(() => {
-            autoSave();
+            if (typeof autoSave === 'function') {
+                autoSave();
+            }
         }, 5000);
+    };
 
-        // Removed the broken undoHistory setInterval block that caused errors
-    });
+    editor.addEventListener('input', window.handleContentChange);
 
     // =================================================================
     // 7. EXTERNAL TRIGGERS (Menus & Shortcuts)
     // =================================================================
 
-    // Optional chaining added in case onMenuAction isn't defined in preload yet
     if (window.electronAPI.onMenuAction) {
         window.electronAPI.onMenuAction('menu-new-note', () => openNewWindowBtn.click());
         window.electronAPI.onMenuAction('menu-open-file', () => openFile.click());
@@ -370,7 +366,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     window.addEventListener('keydown', async (e) => {
         if (e.ctrlKey && e.key.toLowerCase() === 's') {
             e.preventDefault();
-            // Trigger the normal save button logic
             saveBtn.click();
         }
         if (e.ctrlKey && e.key.toLowerCase() === 'y') {
